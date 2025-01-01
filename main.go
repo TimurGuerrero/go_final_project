@@ -34,6 +34,7 @@ func main() {
 
 	http.HandleFunc("/api/nextdate", NextDateHandler)
 	http.HandleFunc("/api/task", AddTaskHandler)
+	http.HandleFunc("/api/tasks", GetTasksHandler)
 
 	log.Println("Сервер запущен на порту 7540")
 	err := http.ListenAndServe(":7540", nil)

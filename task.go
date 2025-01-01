@@ -8,21 +8,27 @@ import (
 	"time"
 
 	// Импортируем sqlx
+
 	_ "github.com/mattn/go-sqlite3" // Импортируем драйвер SQLite
 )
 
 type task struct {
+	ID      string `db:"id"`
 	Date    string `json:"date"`
 	Title   string `json:"title"`
 	Comment string `json:"comment,omitempty"`
 	Repeat  string `json:"repeat,omitempty"`
 }
 
+type TasksResponse struct {
+	Tasks []task `json:"tasks"`
+}
+
 // Обработчик для добавления задачи
 func AddTaskHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Received request: %s %s", r.Method, r.URL.Path)
 	if r.Method != http.MethodPost {
-		http.Error(w, "Метод не поддерживается", http.StatusMethodNotAllowed)
+		http.Error(w, jsonError("Метод не поддерживается"), http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -31,13 +37,13 @@ func AddTaskHandler(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Printf("Ошибка десериализации JSON: %v", err)
-		http.Error(w, `{"error": "Ошибка десериализации JSON"}`, http.StatusBadRequest)
+		http.Error(w, jsonError("Ошибка десериализации JSON"), http.StatusBadRequest)
 		return
 	}
 
 	// Проверка обязательного поля title
 	if newTask.Title == "" {
-		http.Error(w, `{"error": "Не указан заголовок задачи"}`, http.StatusBadRequest)
+		http.Error(w, jsonError("Не указан заголовок задачи"), http.StatusBadRequest)
 		return
 	}
 
@@ -47,7 +53,7 @@ func AddTaskHandler(w http.ResponseWriter, r *http.Request) {
 	} else {
 		_, err = time.Parse("20060102", newTask.Date)
 		if err != nil {
-			http.Error(w, `{"error": "Дата представлена в неправильном формате"}`, http.StatusBadRequest)
+			http.Error(w, jsonError("Дата представлена в неправильном формате"), http.StatusBadRequest)
 			return
 		}
 	}
@@ -61,7 +67,7 @@ func AddTaskHandler(w http.ResponseWriter, r *http.Request) {
 			currentDate, _ := time.Parse("20060102", today)
 			nextDate, err := NextDate(currentDate, newTask.Date, newTask.Repeat)
 			if err != nil {
-				http.Error(w, `{"error": "Неправильный формат правила повторения"}`, http.StatusBadRequest)
+				http.Error(w, jsonError("Неправильный формат правила повторения"), http.StatusBadRequest)
 				return
 			}
 			newTask.Date = nextDate
@@ -71,7 +77,7 @@ func AddTaskHandler(w http.ResponseWriter, r *http.Request) {
 	// Сохранение задачи в БД
 	id, err := saveTaskToDB(newTask)
 	if err != nil {
-		http.Error(w, `{"error": "Ошибка при добавлении задачи"}`, http.StatusInternalServerError)
+		http.Error(w, jsonError("Ошибка при добавлении задачи"), http.StatusInternalServerError)
 		return
 	}
 
@@ -96,4 +102,63 @@ func saveTaskToDB(task task) (int64, error) {
 		log.Printf("Ошибка получения ID: %s\n", err)
 	}
 	return id, nil
+}
+
+// Обработчик для получения задач
+func GetTasksHandler(w http.ResponseWriter, r *http.Request) {
+	// Установка заголовка Content-Type
+	w.Header().Set("Content-Type", "application/json")
+
+	// Получение параметра поиска
+	search := r.URL.Query().Get("search")
+
+	// Подготовка SQL-запроса
+	var tasks []task
+	var err error
+
+	// Проверка, является ли search датой
+	if search != "" {
+		if _, err := time.Parse("02.01.2006", search); err == nil {
+			// Если это дата, преобразуем в нужный формат
+			date := search[6:10] + search[3:5] + search[0:2] // Преобразование 08.02.2024 в 20240208
+			err = DB.Select(&tasks, "SELECT * FROM scheduler WHERE date = ? ORDER BY date LIMIT 50", date)
+			if err != nil {
+				log.Printf("Ошибка преобразования даты в нужный формат: %s\n", err)
+			}
+		} else {
+			// Иначе выполняем поиск по заголовку и комментарию
+			searchPattern := "%" + search + "%"
+			err = DB.Select(&tasks, "SELECT * FROM scheduler WHERE title LIKE ? OR comment LIKE ? ORDER BY date LIMIT 50", searchPattern, searchPattern)
+			if err != nil {
+				log.Printf("Ошибка поиска по заголовку и комментарию: %s\n", err)
+			}
+		}
+	} else {
+		// Если search пустой, просто получаем все задачи
+		err = DB.Select(&tasks, "SELECT * FROM scheduler ORDER BY date LIMIT 50")
+	}
+
+	// Обработка ошибок
+	if err != nil {
+		http.Error(w, jsonError(err.Error()), http.StatusInternalServerError)
+		return
+	}
+
+	// Если задач нет, возвращаем пустой список
+	if tasks == nil {
+		tasks = []task{}
+	}
+
+	// Формируем ответ
+	response := TasksResponse{Tasks: tasks}
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		http.Error(w, jsonError(err.Error()), http.StatusInternalServerError)
+		return
+	}
+}
+
+// jsonError формирует JSON-ответ с ошибкой
+func jsonError(message string) string {
+	errorResponse, _ := json.Marshal(map[string]string{"error": message})
+	return string(errorResponse)
 }

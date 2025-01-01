@@ -8,48 +8,6 @@ import (
 	"time"
 )
 
-// NextDate вычисляет следующую дату для задачи в соответствии с указанным правилом.
-// func NextDate(now time.Time, date string, repeat string) (string, error) {
-
-// 	// Проверяем, что правило не пустое
-// 	if repeat == "" {
-// 		return "", errors.New("правило повторения не может быть пустым")
-// 	}
-
-// 	// Парсим исходную дату
-// 	startDate, err := time.Parse("20060102", date)
-// 	if err != nil {
-// 		return "", fmt.Errorf("неверный формат даты: %v", err)
-// 	}
-
-// 	// Проверяем, что стартовая дата больше текущей
-// 	if !startDate.After(now) {
-// 		startDate = now
-// 	}
-
-// 	// Обрабатываем базовые правила
-// 	switch {
-// 	case repeat == "y":
-// 		nextDate := startDate.AddDate(1, 0, 0)
-// 		return nextDate.Format("20060102"), nil
-
-// 	case strings.HasPrefix(repeat, "d"):
-// 		parts := strings.Fields(repeat)
-// 		if len(parts) != 2 {
-// 			return "", errors.New("неверный формат правила 'd'")
-// 		}
-// 		days, err := strconv.Atoi(parts[1])
-// 		if err != nil || days <= 0 || days > 400 {
-// 			return "", errors.New("неверное количество дней")
-// 		}
-// 		nextDate := startDate.AddDate(0, 0, days)
-// 		return nextDate.Format("20060102"), nil
-
-// 	default:
-// 		return "", errors.New("неподдерживаемый формат")
-// 	}
-// }
-
 func NextDate(now time.Time, date string, repeat string) (string, error) {
 	startDate, err := time.Parse("20060102", date)
 	if err != nil {
