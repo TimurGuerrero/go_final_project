@@ -33,11 +33,12 @@ func main() {
 	// Запускаем сервер
 
 	http.HandleFunc("/api/nextdate", NextDateHandler)
-	http.HandleFunc("/api/task", AddTaskHandler)
+	http.HandleFunc("/api/task", TaskHandler)      // Обработчик для задач
+	http.HandleFunc("/api/task/done", TaskHandler) // Обработчик для отметки задачи как выполненной
 	http.HandleFunc("/api/tasks", GetTasksHandler)
 
-	log.Println("Сервер запущен на порту 7540")
-	err := http.ListenAndServe(":7540", nil)
+	log.Println("Сервер запущен на порту", port)
+	err = http.ListenAndServe(":"+port, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
