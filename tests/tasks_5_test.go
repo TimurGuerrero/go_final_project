@@ -43,7 +43,7 @@ func TestTasks(t *testing.T) {
 	defer db.Close()
 
 	now := time.Now()
-	_, err := db.Exec("DELETE FROM scheduler;")
+	_, err := db.Exec("DELETE FROM scheduler")
 	assert.NoError(t, err)
 
 	tasks := getTasks(t, "")
