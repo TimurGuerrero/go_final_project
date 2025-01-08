@@ -1,19 +1,12 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"os"
-	"time"
 )
 
 func main() {
-	// начало Тестового кода проверок
-	now, _ := time.Parse("20060102", "20240126")
-	fmt.Println(NextDate(now, "16890220", "y"))
-
-	// конец тестового кода проверок
 
 	DB = InitDB()
 	defer DB.Close()
@@ -31,11 +24,11 @@ func main() {
 	http.Handle("/", http.FileServer(http.Dir(webDir)))
 
 	// Запускаем сервер
-
-	http.HandleFunc("/api/nextdate", NextDateHandler)
-	http.HandleFunc("/api/task", TaskHandler)      // Обработчик для задач
-	http.HandleFunc("/api/task/done", TaskHandler) // Обработчик для отметки задачи как выполненной
-	http.HandleFunc("/api/tasks", GetTasksHandler)
+	http.HandleFunc("/api/signin", SignInHandler)
+	http.HandleFunc("/api/nextdate", NextDateHandler)    // Обработчик для следующей даты
+	http.HandleFunc("/api/task", auth(TaskHandler))      // Обработчик для задач
+	http.HandleFunc("/api/task/done", auth(TaskHandler)) // Обработчик для отметки задачи как выполненной
+	http.HandleFunc("/api/tasks", auth(GetTasksHandler)) // Обработчик для получения задач
 
 	log.Println("Сервер запущен на порту", port)
 	err = http.ListenAndServe(":"+port, nil)

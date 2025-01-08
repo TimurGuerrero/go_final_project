@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	_ "github.com/mattn/go-sqlite3" // Импортируем драйвер SQLite
+	_ "github.com/mattn/go-sqlite3"
 )
 
 type task struct {
@@ -29,19 +29,18 @@ func jsonError(message string) string {
 }
 
 // Обработчик для задач
-// Обработчик для задач
 func TaskHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodPost:
 		if r.URL.Path == "/api/task/done" {
-			MarkTaskAsDoneHandler(w, r)
+			MarkTaskAsDoneHandler(w, r) // Обработчик для отметки задачи как выполненной
 		} else {
-			AddTaskHandler(w, r)
+			AddTaskHandler(w, r) // Обработчик для добавления задачи
 		}
 	case http.MethodGet:
 		GetTaskHandler(w, r) // Обработчик для получения задачи
 	case http.MethodDelete:
-		DeleteTaskHandler(w, r)
+		DeleteTaskHandler(w, r) // Обработчик для удаления задачи
 	case http.MethodPut:
 		UpdateTaskHandler(w, r) // Обработчик для обновления задачи
 	default:
@@ -67,6 +66,7 @@ func AddTaskHandler(w http.ResponseWriter, r *http.Request) {
 	// Проверка обязательного поля title
 	if newTask.Title == "" {
 		http.Error(w, jsonError("Не указан заголовок задачи"), http.StatusBadRequest)
+		log.Printf("Не указан заголовок задачи")
 		return
 	}
 
@@ -77,6 +77,7 @@ func AddTaskHandler(w http.ResponseWriter, r *http.Request) {
 		_, err = time.Parse("20060102", newTask.Date)
 		if err != nil {
 			http.Error(w, jsonError("Дата представлена в неправильном формате"), http.StatusBadRequest)
+			log.Printf("Дата предоставлена в верном формате")
 			return
 		}
 	}
@@ -85,12 +86,14 @@ func AddTaskHandler(w http.ResponseWriter, r *http.Request) {
 	today := time.Now().Format("20060102")
 	if newTask.Date < today {
 		if newTask.Repeat == "" {
+			log.Printf("Формат правила повторения отсутствует")
 			newTask.Date = today
 		} else {
 			currentDate, _ := time.Parse("20060102", today)
 			nextDate, err := NextDate(currentDate, newTask.Date, newTask.Repeat)
 			if err != nil {
 				http.Error(w, jsonError("Неправильный формат правила повторения"), http.StatusBadRequest)
+				log.Printf("Формат правила повторения неверный")
 				return
 			}
 			newTask.Date = nextDate
@@ -133,8 +136,6 @@ func GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // Обработчик для обновления задачи
-// Обработчик для обновления задачи
-// Обработчик для обновления задачи
 func UpdateTaskHandler(w http.ResponseWriter, r *http.Request) {
 	var updatedTask task
 	err := json.NewDecoder(r.Body).Decode(&updatedTask)
@@ -160,6 +161,13 @@ func UpdateTaskHandler(w http.ResponseWriter, r *http.Request) {
 		_, err = time.Parse("20060102", updatedTask.Date)
 		if err != nil {
 			http.Error(w, jsonError("Дата представлена в неправильном формате"), http.StatusBadRequest)
+			return
+		}
+		currentDate, _ := time.Parse("20060102", updatedTask.Date)
+		_, err := NextDate(currentDate, updatedTask.Date, updatedTask.Repeat)
+		if err != nil {
+			http.Error(w, jsonError("Неправильный формат правила повторения"), http.StatusBadRequest)
+			log.Printf("Формат правила повторения неверный")
 			return
 		}
 	}
@@ -300,7 +308,6 @@ func MarkTaskAsDoneHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{})
 }
 
-// Обработчик для удаления задачи
 // Обработчик для удаления задачи
 func DeleteTaskHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Получен запрос: %s %s", r.Method, r.URL.Path)
