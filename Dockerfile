@@ -1,33 +1,38 @@
-# Используем официальный образ Golang
-FROM golang:1.22.4 as builder
+# Этап сборки
+FROM golang:alpine AS builder
 
 # Устанавливаем рабочую директорию
 WORKDIR /app
 
-# Копируем go.mod и go.sum
+# Копируем файлы go.mod и go.sum для кэширования зависимостей
 COPY go.mod go.sum ./
 RUN go mod download
 
-# Копируем остальной код
+# Копируем остальную часть кода
 COPY . .
 
-# Собираем приложение
-RUN go build -o main .
+# Компилируем Go приложение
+RUN go build -o server cmd/main.go
 
-# Используем минимальный образ для запуска
-FROM ubuntu:latest
+# Финальный образ
+FROM alpine:latest
 
-# Копируем исполняемый файл и фронтенд
-COPY --from=builder /app/main /app/main
-COPY web /app/web
+# Устанавливаем необходимые пакеты
+RUN apk --no-cache add sqlite sqlite-dev
 
-# Устанавливаем переменные окружения
+# Устанавливаем рабочую директорию
+WORKDIR /app
+
+# Копируем скомпилированное приложение из этапа сборки
+COPY --from=builder /app/server .
+
+# Указываем переменные окружения
 ENV TODO_PORT=7540
-ENV TODO_DBFILE=/app/db.sqlite
+ENV TODO_DBFILE=scheduler.db
 ENV TODO_PASSWORD=your_password
 
 # Открываем порт
 EXPOSE 7540
 
-# Команда для запуска приложения
-CMD ["/app/main"]
+# Запускаем сервер
+CMD ["./server"]
